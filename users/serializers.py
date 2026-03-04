@@ -16,7 +16,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('username', 'password', 'email')
         
     def create(self, validated_data):
-        # We enforce that all users created via API are staff for this project
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data.get('email', ''),
