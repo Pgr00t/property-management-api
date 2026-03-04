@@ -23,9 +23,8 @@ class TestContractAPI:
         self.url = reverse('contract-list-create')
 
     def test_create_contract_calculates_total_value(self, api_client):
-        # 1-month contract (approx)
         start = date(2025, 1, 1)
-        end = date(2025, 1, 31) # 30 days
+        end = date(2025, 1, 31)
         data = {
             'member': self.member.id,
             'unit': self.unit.id,
@@ -36,12 +35,10 @@ class TestContractAPI:
         response = api_client.post(self.url, data)
         assert response.status_code == 201
         contract = Contract.objects.get(pk=response.data['id'])
-        # 30 days / 30.44 * 1000 approx 985.55
         assert contract.total_value > 0
-        assert contract.unit.status == 'available' # Because test today is not 2025-01-01
+        assert contract.unit.status == 'available'
 
     def test_overlapping_contract_fails(self, api_client):
-        # Create first contract
         Contract.objects.create(
             member=self.member,
             unit=self.unit,
@@ -63,7 +60,6 @@ class TestContractAPI:
         assert "This unit is already booked" in str(response.data)
 
     def test_unit_status_active(self, api_client):
-        # Contract active today
         today = date.today()
         data = {
             'member': self.member.id,
@@ -78,16 +74,13 @@ class TestContractAPI:
 
     def test_list_active_contracts(self, api_client):
         today = date.today()
-        # Active
         Contract.objects.create(
             member=self.member, unit=self.unit,
             start_date=today - timedelta(days=1),
             end_date=today + timedelta(days=5),
             monthly_rent=1000
         )
-        # Inactive (future)
         m2 = Member.objects.create(full_name='M2', email='m2@example.com')
-        # We need a different unit or dates for no overlap
         prop2 = Property.objects.create(name='P2', address='A2')
         u2 = Unit.objects.create(property=prop2, unit_number='201', monthly_rent=1000)
         Contract.objects.create(
@@ -100,6 +93,24 @@ class TestContractAPI:
         # Filter active
         response = api_client.get(self.url, {'active': 'true'})
         assert response.status_code == 200
-        data = response.data['results'] if 'results' in response.data else response.data
-        assert len(data) == 1
-        assert data[0]['member'] == self.member.id
+        data_active = response.data['results'] if 'results' in response.data else response.data
+        assert len(data_active) == 1
+        assert data_active[0]['member'] == self.member.id
+
+        # Filter inactive (active=false)
+        response = api_client.get(self.url, {'active': 'false'})
+        assert response.status_code == 200
+        data_inactive = response.data['results'] if 'results' in response.data else response.data
+        assert len(data_inactive) == 1
+        assert data_inactive[0]['member'] == m2.id
+
+    def test_create_contract_defaults_rent(self, api_client):
+        data = {
+            'member': self.member.id,
+            'unit': self.unit.id,
+            'start_date': date(2026, 1, 1),
+            'end_date': date(2026, 1, 31),
+        }
+        response = api_client.post(self.url, data)
+        assert response.status_code == 201
+        assert Decimal(response.data['monthly_rent']) == self.unit.monthly_rent
