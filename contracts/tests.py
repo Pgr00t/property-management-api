@@ -7,36 +7,42 @@ from contracts.models import Contract
 from datetime import date, timedelta
 from decimal import Decimal
 
+
 @pytest.fixture
 def api_client():
     client = APIClient()
-    user = User.objects.create_user(username='contractadmin', password='password123', is_staff=True)
+    user = User.objects.create_user(
+        username="contractadmin", password="password123", is_staff=True
+    )
     client.force_authenticate(user=user)
     return client
+
 
 @pytest.mark.django_db
 class TestContractAPI:
     def setup_method(self):
-        self.prop = Property.objects.create(name='P1', address='A1')
-        self.unit = Unit.objects.create(property=self.prop, unit_number='101', monthly_rent=1000.00)
-        self.member = Member.objects.create(full_name='M1', email='m1@example.com')
-        self.url = reverse('contract-list-create')
+        self.prop = Property.objects.create(name="P1", address="A1")
+        self.unit = Unit.objects.create(
+            property=self.prop, unit_number="101", monthly_rent=1000.00
+        )
+        self.member = Member.objects.create(full_name="M1", email="m1@example.com")
+        self.url = reverse("contract-list-create")
 
     def test_create_contract_calculates_total_value(self, api_client):
         start = date(2025, 1, 1)
         end = date(2025, 1, 31)
         data = {
-            'member': self.member.id,
-            'unit': self.unit.id,
-            'start_date': start,
-            'end_date': end,
-            'monthly_rent': 1000.00
+            "member": self.member.id,
+            "unit": self.unit.id,
+            "start_date": start,
+            "end_date": end,
+            "monthly_rent": 1000.00,
         }
         response = api_client.post(self.url, data)
         assert response.status_code == 201
-        contract = Contract.objects.get(pk=response.data['id'])
+        contract = Contract.objects.get(pk=response.data["id"])
         assert contract.total_value > 0
-        assert contract.unit.status == 'available'
+        assert contract.unit.status == "available"
 
     def test_overlapping_contract_fails(self, api_client):
         Contract.objects.create(
@@ -44,16 +50,16 @@ class TestContractAPI:
             unit=self.unit,
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
-            monthly_rent=1000
+            monthly_rent=1000,
         )
-        
+
         # Overlapping contract
         data = {
-            'member': self.member.id,
-            'unit': self.unit.id,
-            'start_date': date(2025, 1, 15),
-            'end_date': date(2025, 2, 15),
-            'monthly_rent': 1000
+            "member": self.member.id,
+            "unit": self.unit.id,
+            "start_date": date(2025, 1, 15),
+            "end_date": date(2025, 2, 15),
+            "monthly_rent": 1000,
         }
         response = api_client.post(self.url, data)
         assert response.status_code == 400
@@ -62,55 +68,61 @@ class TestContractAPI:
     def test_unit_status_active(self, api_client):
         today = date.today()
         data = {
-            'member': self.member.id,
-            'unit': self.unit.id,
-            'start_date': today - timedelta(days=1),
-            'end_date': today + timedelta(days=5),
-            'monthly_rent': 1000
+            "member": self.member.id,
+            "unit": self.unit.id,
+            "start_date": today - timedelta(days=1),
+            "end_date": today + timedelta(days=5),
+            "monthly_rent": 1000,
         }
         api_client.post(self.url, data)
         self.unit.refresh_from_db()
-        assert self.unit.status == 'occupied'
+        assert self.unit.status == "occupied"
 
     def test_list_active_contracts(self, api_client):
         today = date.today()
         Contract.objects.create(
-            member=self.member, unit=self.unit,
+            member=self.member,
+            unit=self.unit,
             start_date=today - timedelta(days=1),
             end_date=today + timedelta(days=5),
-            monthly_rent=1000
+            monthly_rent=1000,
         )
-        m2 = Member.objects.create(full_name='M2', email='m2@example.com')
-        prop2 = Property.objects.create(name='P2', address='A2')
-        u2 = Unit.objects.create(property=prop2, unit_number='201', monthly_rent=1000)
+        m2 = Member.objects.create(full_name="M2", email="m2@example.com")
+        prop2 = Property.objects.create(name="P2", address="A2")
+        u2 = Unit.objects.create(property=prop2, unit_number="201", monthly_rent=1000)
         Contract.objects.create(
-            member=m2, unit=u2,
+            member=m2,
+            unit=u2,
             start_date=today + timedelta(days=10),
             end_date=today + timedelta(days=20),
-            monthly_rent=1000
+            monthly_rent=1000,
         )
 
         # Filter active
-        response = api_client.get(self.url, {'active': 'true'})
+        response = api_client.get(self.url, {"active": "true"})
         assert response.status_code == 200
-        data_active = response.data['results'] if 'results' in response.data else response.data
+        data_active = (
+            response.data["results"] if "results" in response.data else response.data
+        )
         assert len(data_active) == 1
-        assert data_active[0]['member'] == self.member.id
+        assert data_active[0]["member"] == self.member.id
 
         # Filter inactive (active=false)
-        response = api_client.get(self.url, {'active': 'false'})
+        response = api_client.get(self.url, {"active": "false"})
         assert response.status_code == 200
-        data_inactive = response.data['results'] if 'results' in response.data else response.data
+        data_inactive = (
+            response.data["results"] if "results" in response.data else response.data
+        )
         assert len(data_inactive) == 1
-        assert data_inactive[0]['member'] == m2.id
+        assert data_inactive[0]["member"] == m2.id
 
     def test_create_contract_defaults_rent(self, api_client):
         data = {
-            'member': self.member.id,
-            'unit': self.unit.id,
-            'start_date': date(2026, 1, 1),
-            'end_date': date(2026, 1, 31),
+            "member": self.member.id,
+            "unit": self.unit.id,
+            "start_date": date(2026, 1, 1),
+            "end_date": date(2026, 1, 31),
         }
         response = api_client.post(self.url, data)
         assert response.status_code == 201
-        assert Decimal(response.data['monthly_rent']) == self.unit.monthly_rent
+        assert Decimal(response.data["monthly_rent"]) == self.unit.monthly_rent

@@ -4,12 +4,16 @@ from properties.models import Unit, Member
 from django.utils import timezone
 from decimal import Decimal
 
+
 class Contract(models.Model):
     """
     Model representing a rental contract between a Member and a Unit.
     """
-    member = models.ForeignKey(Member, related_name='contracts', on_delete=models.CASCADE)
-    unit = models.ForeignKey(Unit, related_name='contracts', on_delete=models.CASCADE)
+
+    member = models.ForeignKey(
+        Member, related_name="contracts", on_delete=models.CASCADE
+    )
+    unit = models.ForeignKey(Unit, related_name="contracts", on_delete=models.CASCADE)
     start_date = models.DateField(db_index=True)
     end_date = models.DateField(db_index=True)
     monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
@@ -26,13 +30,15 @@ class Contract(models.Model):
             overlapping_contracts = Contract.objects.filter(
                 unit=self.unit,
                 start_date__lt=self.end_date,
-                end_date__gt=self.start_date
+                end_date__gt=self.start_date,
             )
             if self.pk:
                 overlapping_contracts = overlapping_contracts.exclude(pk=self.pk)
-            
+
             if overlapping_contracts.exists():
-                raise ValidationError("This unit is already booked for the selected dates.")
+                raise ValidationError(
+                    "This unit is already booked for the selected dates."
+                )
 
     def calculate_total_value(self):
         """
@@ -42,15 +48,15 @@ class Contract(models.Model):
         or just use the difference in months if requirements imply calendar months.
         Let's use a more precise daily calculation:
         Total Value = (end_date - start_date).days * (monthly_rent / 30)
-        Actually, typical property systems use: 
+        Actually, typical property systems use:
         Value = Monthly Rent * Number of full months + prorated days.
         Let's stick to a simple: total_days * (monthly_rent * 12 / 365) or similar.
         Requirement says: "The system should automatically calculate total contract value".
         Let's use (end - start) in days / 30.44 * monthly_rent.
         """
         delta = self.end_date - self.start_date
-        months = Decimal(delta.days) / Decimal('30.44')
-        return (months * self.monthly_rent).quantize(Decimal('0.01'))
+        months = Decimal(delta.days) / Decimal("30.44")
+        return (months * self.monthly_rent).quantize(Decimal("0.01"))
 
     def save(self, *args, **kwargs):
         self.full_clean()
