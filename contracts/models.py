@@ -10,8 +10,8 @@ class Contract(models.Model):
     """
     member = models.ForeignKey(Member, related_name='contracts', on_delete=models.CASCADE)
     unit = models.ForeignKey(Unit, related_name='contracts', on_delete=models.CASCADE)
-    start_date = models.DateField()
-    end_date = models.DateField()
+    start_date = models.DateField(db_index=True)
+    end_date = models.DateField(db_index=True)
     monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
     total_value = models.DecimalField(max_digits=15, decimal_places=2, editable=False)
 
@@ -23,7 +23,6 @@ class Contract(models.Model):
             if self.start_date >= self.end_date:
                 raise ValidationError("Start date must be before end date.")
 
-            # Check for overlaps
             overlapping_contracts = Contract.objects.filter(
                 unit=self.unit,
                 start_date__lt=self.end_date,
@@ -50,26 +49,19 @@ class Contract(models.Model):
         Let's use (end - start) in days / 30.44 * monthly_rent.
         """
         delta = self.end_date - self.start_date
-        # Using 30.44 as average days in a month
         months = Decimal(delta.days) / Decimal('30.44')
         return (months * self.monthly_rent).quantize(Decimal('0.01'))
 
     def save(self, *args, **kwargs):
         self.full_clean()
         self.total_value = self.calculate_total_value()
-        
-        # Update Unit status
-        # If the contract is "active" (today is between start and end), set to occupied.
-        # Requirement: "Update Unit status accordingly".
-        # This is tricky because status changes over time. 
-        # For this assignment, we'll set it to occupied if a contract exists that covers "now" or "future"?
-        # Actually, "active" usually means today is within the range.
         super().save(*args, **kwargs)
-        
-        today = timezone.now().date()
-        if self.start_date <= today <= self.end_date:
-            self.unit.status = 'occupied'
-            self.unit.save()
+        self.unit.update_status()
+
+    def delete(self, *args, **kwargs):
+        unit = self.unit
+        super().delete(*args, **kwargs)
+        unit.update_status()
 
     def __str__(self):
         return f"Contract: {self.member.full_name} -> {self.unit.unit_number}"

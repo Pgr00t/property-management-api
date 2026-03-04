@@ -19,6 +19,14 @@ class Unit(models.Model):
     monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 
+    def update_status(self):
+        """Automatically sync unit status based on active contracts."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        is_occupied = self.contracts.filter(start_date__lte=today, end_date__gte=today).exists()
+        self.status = 'occupied' if is_occupied else 'available'
+        self.save(update_fields=['status'])
+
     def __str__(self):
         return f"{self.property.name} - {self.unit_number}"
 
