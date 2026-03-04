@@ -4,20 +4,29 @@ from django.shortcuts import get_object_or_404
 from .models import Property, Unit, Member
 from .serializers import PropertySerializer, UnitSerializer, MemberSerializer
 
+from rest_framework import filters
+
 class PropertyListCreateView(generics.ListCreateAPIView):
     """
     GET /api/properties
     POST /api/properties
     """
-    queryset = Property.objects.all()
+    queryset = Property.objects.prefetch_related('units').all()
     serializer_class = PropertySerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'address']
+    ordering_fields = ['name', 'id']
+    ordering = ['-id']
+
+    def get_serializer_class(self):
+        return PropertySerializer
 
 class PropertyDetailView(generics.RetrieveAPIView):
     """
     GET /api/properties/:property_id
     """
-    queryset = Property.objects.all()
+    queryset = Property.objects.prefetch_related('units').all()
     serializer_class = PropertySerializer
     permission_classes = [IsAuthenticated]
 
@@ -38,9 +47,12 @@ class UnitListView(generics.ListAPIView):
     """
     serializer_class = UnitSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['monthly_rent', 'unit_number', 'id']
+    ordering = ['-id']
 
     def get_queryset(self):
-        queryset = Unit.objects.all()
+        queryset = Unit.objects.select_related('property').all()
         status = self.request.query_params.get('status', None)
         if status is not None:
             queryset = queryset.filter(status=status)
@@ -54,3 +66,7 @@ class MemberListCreateView(generics.ListCreateAPIView):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['full_name', 'email']
+    ordering_fields = ['full_name', 'id']
+    ordering = ['-id']
