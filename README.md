@@ -79,7 +79,49 @@ pytest
 - `GET /api/contracts/`: List all contracts.
 - `GET /api/contracts?active=true`: List only active contracts.
 
-## Sample Response (Contract)
+## Sample Responses
+
+### Property Response
+```json
+{
+    "id": 1,
+    "name": "Ocean View",
+    "address": "123 Coastal Loop",
+    "units": [
+        {
+            "id": 1,
+            "property": 1,
+            "property_name": "Ocean View",
+            "unit_number": "A-101",
+            "monthly_rent": "2000.00",
+            "status": "occupied"
+        }
+    ]
+}
+```
+
+### Unit Response
+```json
+{
+    "id": 1,
+    "property": 1,
+    "property_name": "Ocean View",
+    "unit_number": "A-101",
+    "monthly_rent": "2000.00",
+    "status": "occupied"
+}
+```
+
+### Member Response
+```json
+{
+    "id": 1,
+    "full_name": "John Postman",
+    "email": "john@postman.com"
+}
+```
+
+### Contract Response
 ```json
 {
     "id": 1,
