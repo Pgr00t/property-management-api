@@ -84,7 +84,9 @@ pytest
 {
     "id": 1,
     "member": 1,
+    "member_name": "John Doe",
     "unit": 1,
+    "unit_number": "101",
     "start_date": "2025-01-01",
     "end_date": "2025-01-31",
     "monthly_rent": "1000.00",
